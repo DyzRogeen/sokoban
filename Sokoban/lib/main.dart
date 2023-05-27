@@ -18,19 +18,12 @@ var case_cible = Block(['sol.png','cible.png']);
 var case_sol = Block(['sol.png']);
 var case_vide = Block([]);
 var case_caisse = Block(['sol.png','caisse.png']);
+var case_caisseV = Block(['sol.png','caisseV.png']);
 
-var playerH0 = Block(['haut_0.png']);
-var playerH1 = Block(['haut_1.png']);
-var playerH2 = Block(['haut_2.png']);
-var playerB0 = Block(['bas_0.png']);
-var playerB1 = Block(['bas_1.png']);
-var playerB2 = Block(['bas_2.png']);
-var playerG0 = Block(['gauche_0.png']);
-var playerG1 = Block(['gauche_1.png']);
-var playerG2 = Block(['gauche_2.png']);
-var playerD0 = Block(['droite_0.png']);
-var playerD1 = Block(['droite_1.png']);
-var playerD2 = Block(['droite_2.png']);
+var playerH = Block(['haut_0.png']);
+var playerB = Block(['bas_0.png']);
+var playerG = Block(['gauche_0.png']);
+var playerD = Block(['droite_0.png']);
 
 void main() {
   runApp(const MyApp());
@@ -168,7 +161,6 @@ class Entities {
   FetchEntities(){
 
     int rowNber = 0;
-    List<String> chars;
 
     nbTargets = 0;
     nbTargetsChecked = 0;
@@ -178,8 +170,8 @@ class Entities {
       for (int i in List<int>.generate(line.length, (j) => j)){
         String char = line[i];
 
-        if (char == '\$') boxes.add(Box(i, rowNber));
-        if (char == '@') player = Player(i, rowNber);
+        if (char == '\$') boxes.add(Box(i, rowNber, false));
+        if (char == '@') player = Player(i, rowNber, playerB);
         if (char == '.') nbTargets++;
       }
 
@@ -201,17 +193,27 @@ class Entities {
 
         for (var boxBis in boxes) if (boxBis.x == new_x + dir[0] && boxBis.y == new_y + dir[1]) return;
 
-        if (level!.map![new_y + dir[1]][new_x + dir[0]] == '.') nbTargetsChecked++;
+        if (level!.map![new_y][new_x] == '.'){
+          nbTargetsChecked--;
+          box.isChecked = false;
+        }
 
-        boxes[boxes.indexOf(box)] = Box(new_x + dir[0], new_y + dir[1]);
+        if (level!.map![new_y + dir[1]][new_x + dir[0]] == '.') {
+          nbTargetsChecked++;
+          box.isChecked = true;
+        }
+
+        boxes[boxes.indexOf(box)] = Box(new_x + dir[0], new_y + dir[1], box.isChecked!);
 
         break;
       }
     }
 
-    if (level!.map![new_y][new_x] == '.') nbTargetsChecked--;
+    Block sprite = dir[0] == 0 ? (dir[1] == 1 ? playerB : playerH) : (dir[0] == 1 ? playerD : playerG);
 
-    player = Player(new_x, new_y);
+    player = Player(new_x, new_y, sprite);
+
+    print(nbTargetsChecked);
   }
 
 }
@@ -219,13 +221,14 @@ class Entities {
 class Box extends StatelessWidget {
   int? x;
   int? y;
+  bool? isChecked;
 
-  Box(this.x,this.y);
+  Box(this.x,this.y, this.isChecked);
 
   @override
   Widget build(BuildContext context){
     return AnimatedPositioned(
-      child: case_caisse,
+      child: isChecked! ? case_caisseV : case_caisse,
       duration: Duration(milliseconds: 100),
       left: BoxDimensions*x!.toDouble(),
       top: BoxDimensions*y!.toDouble(),
@@ -237,15 +240,15 @@ class Box extends StatelessWidget {
 class Player extends StatelessWidget {
   int? x;
   int? y;
-  Block sprite = playerB0;
+  Block? sprite;
 
-  Player(this.x,this.y);
+  Player(this.x,this.y, this.sprite);
 
   @override
   Widget build(BuildContext context){
 
     return AnimatedPositioned(
-      child: sprite,
+      child: sprite!,
       duration: Duration(milliseconds: 100),
       left: BoxDimensions*x!.toDouble(),
       top: BoxDimensions*y!.toDouble(),
@@ -265,6 +268,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   bool loading = true;
+  int levelNumber = 0;
 
   Levels niveaux = new Levels();
   LevelBuilder lvlBuilder = new LevelBuilder(null);
@@ -273,12 +277,28 @@ class _MyHomePageState extends State<MyHomePage> {
   _MyHomePageState(){
     niveaux.loadLevels().then((value) => setState((){
 
-      lvlBuilder = LevelBuilder(niveaux.levels![0]);
-      e = Entities(niveaux.levels![0]);
+      lvlBuilder = LevelBuilder(niveaux.levels![levelNumber]);
+      e = Entities(niveaux.levels![levelNumber]);
       e.FetchEntities();
 
       loading = false;
     }));
+  }
+
+  checkFinish() {
+    if (e.nbTargets != e.nbTargetsChecked) return;
+
+    loading = true;
+
+    levelNumber++;
+
+    lvlBuilder = LevelBuilder(niveaux.levels![levelNumber]);
+    e = Entities(niveaux.levels![levelNumber]);
+    e.FetchEntities();
+
+    setState((){});
+
+    loading = false;
   }
 
   @override
@@ -290,26 +310,22 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       body: loading ? CircularProgressIndicator() : Center(
         child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
+          reverse: true,
           child : Stack(children: [
             lvlBuilder,
             e.player!,
-            Positioned(
-                top: 400.0,
-                left: 500.0,
-                child: Container(
-                    width: 100.0,
-                    height: 100.0,
-                    child: Joystick(size: 100,
-                      opacity: 0.4,
-                      isDraggable: false,
-                      onUpPressed: (){e.TryGo([0, -1]);setState(() {});},
-                      onDownPressed: (){e.TryGo([0, 1]);setState(() {});},
-                      onLeftPressed: (){e.TryGo([-1, 0]);setState(() {});},
-                      onRightPressed: (){e.TryGo([1, 0]);setState(() {});},
-                    ))),
           ]+e.boxes)
         )
-      )
+      ),
+      floatingActionButton: Joystick(size: 100,
+        opacity: 0.4,
+        isDraggable: true,
+        onUpPressed: (){e.TryGo([0, -1]);checkFinish();setState(() {});},
+        onDownPressed: (){e.TryGo([0, 1]);checkFinish();setState(() {});},
+        onLeftPressed: (){e.TryGo([-1, 0]);checkFinish();setState(() {});},
+        onRightPressed: (){e.TryGo([1, 0]);checkFinish();setState(() {});},
+      ),
     ); // This trailing comma makes auto-formatting nicer for build methods.
   }
 }
