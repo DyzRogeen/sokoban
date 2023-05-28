@@ -140,7 +140,6 @@ class LevelBuilder extends StatelessWidget {
     }
 
     return Container(
-      color: Colors.black54,
       width: level!.largeur!.toDouble() * 50.0,
       height: level!.hauteur!.toDouble() * 50.0,
       child: Column(children: rows!,)
@@ -156,6 +155,9 @@ class Entities {
   int nbTargets = 0;
   int nbTargetsChecked = 0;
 
+  List<List<Box>> boxHistory = [];
+  List<Player> playerHistory = [];
+
   Entities(this.level);
 
   FetchEntities(){
@@ -164,6 +166,10 @@ class Entities {
 
     nbTargets = 0;
     nbTargetsChecked = 0;
+
+    boxes = [];
+    boxHistory = [];
+    playerHistory = [];
 
     for (var line in level!.map!){
 
@@ -177,6 +183,8 @@ class Entities {
 
       rowNber++;
     }
+
+    SaveState();
 
   }
 
@@ -213,7 +221,25 @@ class Entities {
 
     player = Player(new_x, new_y, sprite);
 
-    print(nbTargetsChecked);
+    SaveState();
+  }
+
+  SaveState(){
+    boxHistory.add(new List<Box>.from(boxes));
+    playerHistory.add(player!);
+  }
+
+  UndoState(){
+    if (boxHistory.length < 2 || playerHistory.length < 2) return;
+
+    boxHistory.removeLast();
+    boxes = boxHistory[boxHistory.length - 1];
+
+    nbTargetsChecked = 0;
+    for (var box in boxes) if (box.isChecked!) nbTargetsChecked++;
+
+    playerHistory.remove(player);
+    player = playerHistory[playerHistory.length - 1];
   }
 
 }
@@ -305,27 +331,30 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
+      backgroundColor: Colors.black87,
       appBar: AppBar(
-        title: Text(widget.title),
+        leading: IconButton(onPressed: (){e.FetchEntities();setState(() {});}, icon: const Icon(Icons.menu),),
+        title: Text("Sokoban | Level "+ (levelNumber + 1).toString()),
+        actions: [IconButton(onPressed: (){e.UndoState();setState(() {});}, icon: const Icon(Icons.keyboard_backspace),),],
       ),
       body: loading ? CircularProgressIndicator() : Center(
         child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          reverse: true,
-          child : Stack(children: [
-            lvlBuilder,
-            e.player!,
+          child : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Stack(children: [
+              lvlBuilder,
+              e.player!,
           ]+e.boxes)
         )
-      ),
+      )),
       floatingActionButton: Joystick(size: 100,
-        opacity: 0.4,
-        isDraggable: true,
-        onUpPressed: (){e.TryGo([0, -1]);checkFinish();setState(() {});},
-        onDownPressed: (){e.TryGo([0, 1]);checkFinish();setState(() {});},
-        onLeftPressed: (){e.TryGo([-1, 0]);checkFinish();setState(() {});},
-        onRightPressed: (){e.TryGo([1, 0]);checkFinish();setState(() {});},
-      ),
+          opacity: 0.4,
+          isDraggable: true,
+          onUpPressed: (){e.TryGo([0, -1]);checkFinish();setState(() {});},
+          onDownPressed: (){e.TryGo([0, 1]);checkFinish();setState(() {});},
+          onLeftPressed: (){e.TryGo([-1, 0]);checkFinish();setState(() {});},
+          onRightPressed: (){e.TryGo([1, 0]);checkFinish();setState(() {});},
+        ),
     ); // This trailing comma makes auto-formatting nicer for build methods.
   }
 }
