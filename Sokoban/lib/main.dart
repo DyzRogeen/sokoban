@@ -5,12 +5,22 @@ import 'package:flutter/services.dart';
 import 'package:joystick/joystick.dart';
 
 const double BoxDimensions = 50.0;
+const double PixDimensions = 3.0;
 
 var spriteNames = {
   '#':case_bloc,
   ' 0':case_vide,
   ' ':case_sol,
   '.':case_cible,
+};
+
+var pixelColor = {
+  '#':Colors.red,
+  ' ':Colors.grey,
+  '.':Colors.white70,
+  '\$':Colors.deepOrange,
+  '@':Colors.green,
+  '0':null,
 };
 
 var case_bloc = Block(['sol.png','bloc.png']);
@@ -24,6 +34,8 @@ var playerH = Block(['haut_0.png']);
 var playerB = Block(['bas_0.png']);
 var playerG = Block(['gauche_0.png']);
 var playerD = Block(['droite_0.png']);
+
+enum Window {Main, LevelSelector, Game, GameMenu}
 
 void main() {
   runApp(const MyApp());
@@ -108,7 +120,6 @@ class LevelBuilder extends StatelessWidget {
     List<Expanded>? blocks;
 
     bool floorBegan;
-    List<String> chars;
     String char;
     int lastlength = level!.largeur!;
 
@@ -140,8 +151,8 @@ class LevelBuilder extends StatelessWidget {
     }
 
     return Container(
-      width: level!.largeur!.toDouble() * 50.0,
-      height: level!.hauteur!.toDouble() * 50.0,
+      width: level!.largeur!.toDouble() * BoxDimensions,
+      height: level!.hauteur!.toDouble() * BoxDimensions,
       child: Column(children: rows!,)
     );
   }
@@ -184,8 +195,6 @@ class Entities {
       rowNber++;
     }
 
-    SaveState();
-
   }
 
   TryGo(List<int> dir){
@@ -193,6 +202,8 @@ class Entities {
     int new_y = player!.y! + dir[1];
 
     if (level!.map![new_y][new_x] == '#') return;
+
+    SaveState();
 
     for (var box in boxes){
       if (box.x == new_x && box.y == new_y){
@@ -220,8 +231,6 @@ class Entities {
     Block sprite = dir[0] == 0 ? (dir[1] == 1 ? playerB : playerH) : (dir[0] == 1 ? playerD : playerG);
 
     player = Player(new_x, new_y, sprite);
-
-    SaveState();
   }
 
   SaveState(){
@@ -230,16 +239,17 @@ class Entities {
   }
 
   UndoState(){
-    if (boxHistory.length < 2 || playerHistory.length < 2) return;
+    if (boxHistory.length < 1 || playerHistory.length < 1) return;
 
-    boxHistory.removeLast();
     boxes = boxHistory[boxHistory.length - 1];
+    boxHistory.removeLast();
 
     nbTargetsChecked = 0;
     for (var box in boxes) if (box.isChecked!) nbTargetsChecked++;
 
-    playerHistory.remove(player);
     player = playerHistory[playerHistory.length - 1];
+    playerHistory.removeLast();
+
   }
 
 }
@@ -283,6 +293,116 @@ class Player extends StatelessWidget {
 
 }
 
+class Menu extends StatelessWidget {
+  bool isMain = true;
+  final Play;
+  final Select;
+
+  Menu(this.isMain, this.Play, this.Select);
+
+  @override
+  Widget build(BuildContext context){
+
+    bool loaded = false;
+
+    return Column(children: [
+      Text(isMain ? "SOKOBAN" : "Menu", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 50.0),),
+      Container(
+        margin: EdgeInsets.fromLTRB(0,40.0,0,20.0),
+        width: 150.0,
+        height: 50.0,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10.0), border: Border.all(color: Colors.white)),
+        child: InkWell(onTap: () {Play(isMain?0:-1);},child: Text(isMain?"PLAY":"Retry", textAlign: TextAlign.center,style: TextStyle(color: Colors.white, fontSize: 35.0)),),
+      ),
+      Container(
+        margin: EdgeInsets.all(20.0),
+        width: 150.0,
+        height: 50.0,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10.0), border: Border.all(color: Colors.white)),
+        child: InkWell(onTap: () {Select();},child: Text("Level\nSelection", textAlign: TextAlign.center,style: TextStyle(color: Colors.white, fontSize: 20.0)),),
+      ),
+    ]);
+  }
+}
+
+class LevelSelector extends StatelessWidget{
+  Levels? levels;
+  final Play;
+
+  LevelSelector(this.levels, this.Play);
+
+  @override
+  Widget build(BuildContext context){
+
+    List<Container> levelBox = [];
+
+    for(var level in levels!.levels!) levelBox.add(Container(
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10.0), color: Colors.white12),
+      margin: EdgeInsets.all(10.0),
+      padding: EdgeInsets.all(10.0),
+        child: InkWell(onTap: (){Play(levels!.levels!.indexOf(level));},
+            child: Row(children: [
+      Container(margin: EdgeInsets.all(50.0),width: 120.0, height: 100, child: LevelOverview(level)),
+      Text("Niveau "+(levelBox.length + 1).toString(), style: TextStyle(color: Colors.white, fontSize: 30.0)),
+    ],))));
+
+    return Column(children: levelBox,);
+  }
+}
+
+class LevelOverview extends StatelessWidget{
+  Level? level;
+
+  LevelOverview(this.level);
+
+  @override
+  Widget build(BuildContext context){
+
+    double lvlWidth = level!.largeur!.toDouble();
+    double lvlHeight = level!.hauteur!.toDouble();
+    double pixSize = 22.0 * PixDimensions / lvlHeight;
+
+    List<Row>? rows = [];
+    List<Container>? pixels;
+
+    bool floorBegan;
+    String char;
+    int lastlength = level!.largeur!;
+
+    for (var line in (level?.map)!){
+
+      pixels = [];
+      floorBegan = false;
+
+      for (int i in List<int>.generate(level!.largeur!, (j) => j)){
+
+        if (i == lastlength) floorBegan = false;
+
+        if (i < line.length){
+          char = line[i];
+
+          if (!floorBegan && char == '#') floorBegan = true;
+          else if (!floorBegan && char == ' ') char = '0';
+
+          pixels.add(Container(width: pixSize, height: pixSize, color: pixelColor[char],));
+        }
+        else pixels.add(Container(width: pixSize, height: pixSize, color: pixelColor['0'],));
+
+      }
+      lastlength = line.length;
+
+      rows?.add(Row(children: pixels,));
+
+    }
+
+    return Container(
+        width: lvlWidth * PixDimensions,
+        height: lvlHeight * PixDimensions,
+        child: Column(children: rows!,)
+    );
+  }
+}
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
@@ -295,6 +415,10 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   bool loading = true;
   int levelNumber = 0;
+  Window currentWindow = Window.Main;
+
+  Widget mainWidget = CircularProgressIndicator();
+  Text bannerText = Text("Sokoban | Main Menu");
 
   Levels niveaux = new Levels();
   LevelBuilder lvlBuilder = new LevelBuilder(null);
@@ -307,8 +431,69 @@ class _MyHomePageState extends State<MyHomePage> {
       e = Entities(niveaux.levels![levelNumber]);
       e.FetchEntities();
 
+      mainWidget = Menu(true, Play, Select);
+
       loading = false;
     }));
+  }
+  
+  WindowSwitcher(Window mode){
+    
+    switch(mode){
+      
+      case Window.Main:
+        
+        mainWidget = Menu(true, Play, Select);
+        bannerText = Text("Sokoban | Main Menu");
+        break;
+        
+      case Window.LevelSelector:
+
+        mainWidget = SingleChildScrollView(child: LevelSelector(niveaux, Play));
+        bannerText = Text("Sokoban | Level Selection ");
+        break;
+        
+      case Window.Game:
+
+        mainWidget = SingleChildScrollView(
+            child : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Stack(children: [
+                  lvlBuilder,
+                  e.player!,
+                ]+e.boxes)
+            )
+        );
+        bannerText = Text("Sokoban | Level "+ (levelNumber + 1).toString());
+        break;
+        
+      case Window.GameMenu:
+
+        mainWidget = Menu(false, Play, Select);
+        break;
+    }
+    currentWindow = mode;
+  }
+  
+  Play(int levelNum){
+
+    if (levelNum != -1){
+      levelNumber = levelNum;
+
+      lvlBuilder = LevelBuilder(niveaux.levels![levelNumber]);
+      e = Entities(niveaux.levels![levelNumber]);
+    }
+
+    e.FetchEntities();
+    
+    WindowSwitcher(Window.Game);
+
+    setState(() {});
+  }
+
+  Select(){
+    WindowSwitcher(Window.LevelSelector);
+    setState(() {});
   }
 
   checkFinish() {
@@ -318,13 +503,28 @@ class _MyHomePageState extends State<MyHomePage> {
 
     levelNumber++;
 
+    bannerText = Text("Sokoban | Level "+ (levelNumber + 1).toString());
     lvlBuilder = LevelBuilder(niveaux.levels![levelNumber]);
     e = Entities(niveaux.levels![levelNumber]);
     e.FetchEntities();
 
-    setState((){});
-
     loading = false;
+  }
+
+  UpdateGame(List<int> dir, bool mustUndo){
+    if (mustUndo) e.UndoState();
+    else e.TryGo(dir);
+    checkFinish();
+    mainWidget = SingleChildScrollView(
+        child : SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Stack(children: [
+              lvlBuilder,
+              e.player!,
+            ]+e.boxes)
+        )
+    );
+    setState(() {});
   }
 
   @override
@@ -333,28 +533,23 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       backgroundColor: Colors.black87,
       appBar: AppBar(
-        leading: IconButton(onPressed: (){e.FetchEntities();setState(() {});}, icon: const Icon(Icons.menu),),
-        title: Text("Sokoban | Level "+ (levelNumber + 1).toString()),
-        actions: [IconButton(onPressed: (){e.UndoState();setState(() {});}, icon: const Icon(Icons.keyboard_backspace),),],
+        leading: (currentWindow == Window.Game) ? IconButton(onPressed: (){WindowSwitcher(Window.GameMenu);setState(() {});}, icon: const Icon(Icons.menu),) : Container(),
+        title: bannerText,
+        actions: (currentWindow == Window.Game) ?
+        [IconButton(onPressed: (){UpdateGame([],true);}, icon: const Icon(Icons.keyboard_backspace))] :
+        ((currentWindow != Window.Main)?[IconButton(onPressed: (){WindowSwitcher(Window.Main);setState(() {});}, icon: const Icon(Icons.keyboard_backspace))]:[Container()])
       ),
-      body: loading ? CircularProgressIndicator() : Center(
-        child: SingleChildScrollView(
-          child : SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Stack(children: [
-              lvlBuilder,
-              e.player!,
-          ]+e.boxes)
-        )
-      )),
-      floatingActionButton: Joystick(size: 100,
+      body: Center(
+        child: loading ? CircularProgressIndicator() : mainWidget
+      ),
+      floatingActionButton: (currentWindow == Window.Game) ? Joystick(size: 100,
           opacity: 0.4,
           isDraggable: true,
-          onUpPressed: (){e.TryGo([0, -1]);checkFinish();setState(() {});},
-          onDownPressed: (){e.TryGo([0, 1]);checkFinish();setState(() {});},
-          onLeftPressed: (){e.TryGo([-1, 0]);checkFinish();setState(() {});},
-          onRightPressed: (){e.TryGo([1, 0]);checkFinish();setState(() {});},
-        ),
+          onUpPressed: (){UpdateGame([0, -1],false);},
+          onDownPressed: (){UpdateGame([0, 1],false);},
+          onLeftPressed: (){UpdateGame([-1, 0],false);},
+          onRightPressed: (){UpdateGame([1, 0],false);},
+        ) : null
     ); // This trailing comma makes auto-formatting nicer for build methods.
   }
 }
