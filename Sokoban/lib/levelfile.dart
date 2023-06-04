@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart' show rootBundle;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:joystick/joystick.dart';
@@ -28,6 +30,13 @@ class Level {
   int? largeur;
   List<List<String>>? map;
   Level(this.hauteur, this.largeur, this.map);
+  Map<String, dynamic> toJson() {
+    return {
+      'hauteur': hauteur,
+      'largeur': largeur,
+      'map': map,
+    };
+  }
 }
 
 
@@ -106,6 +115,12 @@ class Block extends StatelessWidget {
   List<String?> spriteName;
 
   Block(this.spriteName);
+
+  Map<String, dynamic> toJson() {
+    return {
+      'spriteName': spriteName,
+    };
+  }
 
   @override
   Widget build(BuildContext context){

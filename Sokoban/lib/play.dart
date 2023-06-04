@@ -2,6 +2,11 @@ import 'dart:convert';
 import 'levelfile.dart';
 import 'menu.dart';
 
+import 'dart:io';
+import 'package:path_provider/path_provider.dart' as pathProvider;
+import 'package:path/path.dart' as pathLib;
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:joystick/joystick.dart';
@@ -92,13 +97,30 @@ class Entities {
     player = Player(new_x, new_y, sprite);
   }
 
-  SaveState(){
+  SaveState() async{
     if(boxHistory.length ==99){
       boxHistory.removeAt(0);
       playerHistory.removeAt(0);
     }
     boxHistory.add(new List<Box>.from(boxes));
     playerHistory.add(player!);
+
+    final data = [
+      level,
+      boxHistory.map((boxList) => boxList.map((box) => box.toJson()).toList()).toList(),
+      {
+        'x': player!.x,
+        'y': player!.y,
+        'sprite': player!.sprite?.toJson(),
+      },
+    ];
+
+    final jsonString = jsonEncode(data);
+
+    final file = File('C:/Users/Gabriel/Documents/GitHub/sokoban/Sokoban/assets/lastlevel.json);');
+    await file.writeAsString(jsonString);
+    print("Ecriture terminer");
+
   }
 
   UndoState(){
@@ -142,6 +164,13 @@ class Box extends StatelessWidget {
 
   Box(this.x,this.y, this.isChecked);
 
+  Map<String, dynamic> toJson() {
+    return {
+      'x': x,
+      'y': y,
+      'isChecked': isChecked,
+    };
+  }
   @override
   Widget build(BuildContext context){
     return AnimatedPositioned(

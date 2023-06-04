@@ -18,6 +18,7 @@ enum Window {Main, LevelSelector, Game, GameMenu}
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await LoadpastLevel();
+  print(LastLevel);
   runApp(const MyApp());
 }
 
@@ -45,7 +46,6 @@ Future<void> LoadpastLevel() async {
   LastLevel =data[0] ;
   tempboxHistory = data[1] ;
   tempplayerHistory = data[2] ;
-  print(LastLevel);
 }
 
 class MyHomePage extends StatefulWidget {
@@ -58,6 +58,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
   bool loading = true;
   int levelNumber = 0;
   Window currentWindow = Window.Main;
@@ -76,7 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
       e = Entities(niveaux.levels![levelNumber]);
       e.FetchEntities();
 
-      mainWidget = Menu(true, Play, Select, [0, [], []]);
+      mainWidget = Menu(true, Play, Select, [LastLevel, tempplayerHistory, tempboxHistory]);
 
       loading = false;
     }));
@@ -87,8 +88,7 @@ class _MyHomePageState extends State<MyHomePage> {
     switch(mode){
 
       case Window.Main:
-
-        mainWidget = Menu(true, Play, Select, [LastLevel, tempplayerHistory, tempboxHistory]);
+        mainWidget = Menu(true, Play, Select,[0, [], []] );
         bannerText = Text("Sokoban | Main Menu");
         break;
 
@@ -174,6 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+
 
     return Scaffold(
       backgroundColor: Colors.black87,
